@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15
+    container_name: postgres_db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: test_db
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U myuser"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    expose:
+      - "5432: 5433"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql 
+  
+  redis:
+    image: redis:7
+    container_name: redis_container
+    ports:
+      - 6379:6379
+    restart: always
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+     
+  web:
+    container_name: fast_api_route
+    build: src/
+    ports: 
+      - 8000:8000
+    volumes:
+      - .:/src
+    depends_on:
+      redis:
+        condition: service_healthy
+      db: 
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/test_db
+
+volumes:
+    postgres_data:
